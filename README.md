@@ -15,6 +15,7 @@ pip install -r requirements.txt
 python fetch_data.py                       # -> sp500_returns.csv  (Date, AdjClose, r)
 python run_all.py --csv sp500_returns.csv --out output --window 1500
 python make_tables.py --out output         # -> output/tab_*.tex
+python appendix_robustness.py --csv sp500_returns.csv --out output   # appendix tables (slow)
 ```
 `run_all.py` writes `output/insample.json` and `output/results.json`; `make_tables.py`
 turns those into `tab_estimates.tex`, `tab_full_qlike.tex`, `tab_regime_qlike.tex`,
@@ -28,6 +29,7 @@ turns those into `tab_estimates.tex`, `tab_full_qlike.tex`, `tab_regime_qlike.te
 | `evaluation.py` | QLIKE, Diebold–Mariano, MCS, Kupiec/Christoffersen/DQ |
 | `run_all.py` | rolling 1,500-day forecast + full-sample and regime evaluation |
 | `make_tables.py` | JSON results -> LaTeX tables |
+| `appendix_robustness.py` | the three appendix checks (window length, regime classifiers, refit) + claim verification |
 
 ## Design notes (what this fixes vs. the earlier scripts)
 - **QLIKE on the conditional variance.** For the score-driven models the filtered
@@ -52,7 +54,20 @@ regime tables). This pipeline is rebuilt to the methodology and is the authorita
 source going forward: re-run it and update any thesis number that has shifted so the
 repository and the thesis agree.
 
-The appendix robustness checks (1,000/2,000-day windows; NBER and VIX regime
-classifiers; daily refit) are not yet automated here — the window-length and refit
-variants are one-line changes to `run_all.py`; the NBER/VIX classifiers need their own
-external series.
+## Appendix robustness
+`appendix_robustness.py` runs the three checks the appendix reports and writes
+`tab_robust_window.tex`, `tab_robust_regime.tex`, `tab_robust_refit.tex` (paste each
+tabular into the matching `[TBC]` table in `appendix.tex`):
+
+- estimation window 1,000 / 1,500 / 2,000 days, evaluated on the common out-of-sample period;
+- regime classifier replaced by NBER recession dates (hard-coded) and a VIX top-quintile
+  rule (VIX fetched from Yahoo, or pass `--vix vix.csv` with `Date,Close`);
+- weekly vs daily refit for the two score-driven models.
+
+It also prints a check of the three conclusions stated in the results paragraph: that
+GARCH-Gauss stays in the MCS in both regimes, that the GARCH-*t* advantage keeps its sign,
+and that the score-driven models over-violate at the 1% VaR level. If any of those does
+*not* hold on your data, soften the corresponding sentence in the results section.
+
+This script is heavy: the window check is three full rolling runs and the daily refit
+re-estimates the score-driven models every day. Run it once, overnight if needed.
